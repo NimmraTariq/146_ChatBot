@@ -1,31 +1,38 @@
-const path = require("node:path");
 const express = require("express");
 const dotenv = require("dotenv");
 
 dotenv.config();
 
 const app = express();
+const PORT = 3000;
 
-app.use(express.json({ limit: "10kb" }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
+app.use(express.static ("public"));
 
-app.post("/api/chat", (req, res) => {
-    const { message } = req.body;
-
-    if (typeof message !== "string" || !message.trim()) {
-        return res.status(400).json({ error: "A non-empty message is required." });
-    }
-
-    res.json({
-        reply: "Thanks for your message! This demo chat is ready for an AI service integration.",
-    });
+app.get("/", (req, res) => {
+    res.redirect("index.html");
 });
 
-if (require.main === module) {
-    const port = Number(process.env.PORT) || 3000;
-    app.listen(port, () => {
-        console.log(`Chatbot server listening on http://localhost:${port}`);
-    });
-}
+app.post("/api/chat", async (req, res) => {
+    try {
+        const messages  = req.body.messages;
 
-module.exports = app;
+        if (!messages || !Array.isArray(messages)) {
+            return res.status(400).json({ error: "Messages must be an array" });
+        }
+
+        const response = await fetch(
+            "https://api.openrouter.ai/v1/chat/completions", 
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: "openchat/openchat-7b",
+                    messages: messages
+                })
+            }
+        );
+
