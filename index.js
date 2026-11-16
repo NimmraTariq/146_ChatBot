@@ -48,74 +48,61 @@ app.post("/api/chat", async (req, res) => {
             });
         }
 
-        //Header for streaming response
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Connection", "keep-alive");
 
-        // Stream the response from OpenRouter to the client
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-
         let buffer = "";
+
+        const processLine = (line) => {
+            const trimmedLine = line.trim();
+            if (!trimmedLine.startsWith("data:")) {
+                return;
+            }
+
+            const data = trimmedLine.slice(5).trim();
+            if (!data || data === "[DONE]") {
+                return;
+            }
+
+            const chunk = JSON.parse(data);
+            const content = chunk.choices?.[0]?.delta?.content;
+            if (content) {
+                res.write(`data: ${JSON.stringify(content)}\n\n`);
+            }
+        };
 
         while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
-        }
+            if (done) {
+                break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
-
             const lines = buffer.split("\n");
-
-            //Simpan bagian terakhir karena mungkin belum lengkap
-            buffer = lines.pop(); 
+            buffer = lines.pop() || "";
 
             for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (trimmedLine) {
-                    continue; // Skip empty lines
-                }
-                
-                if (trimmedLine.startsWith("data: ")) {
-                    continue;
-                }
-                const data = trimmedLine.slice(5).trim();
-
-                if (data === "[DONE]") {
-                    continue;
-                }
-                
-                try {
-                    const json = JSON.parse(data);
-                    const content = json.choices[0]?.delta?.content;
-                    if (content) {
-                        res.write(`data: ${JSON.stringify(content)}\n\n`);
-                    }
-                }
-                catch (error) {
-                    console.error("Error parsing JSON:", error);
-                }
+                processLine(line);
             }
         }
-    
 
-    res.write("data: [DONE]\n\n");
-    res.end();
-    
+        buffer += decoder.decode();
+        if (buffer) {
+            processLine(buffer);
+        }
+
+        res.write("data: [DONE]\n\n");
+        res.end();
     } catch (error) {
-        console.error("Server Error:", error);
-
-        if (!res.headersSent) {
-            res.status(500).json({ error: "Internal Server Error" });
+        console.error("Chat request failed:", error);
+        if (res.headersSent) {
+            return res.end();
         }
-        else {
-            res.write(
-                `data: ${JSON.stringify({"Internal Server Error" })}\n\n`
-            );
-            res.end();
-        }
-}
+        return res.status(502).json({ error: "Unable to complete chat request." });
+    }
 });
 
 app.listen(PORT, () => {
