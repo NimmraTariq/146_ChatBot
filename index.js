@@ -30,9 +30,33 @@ app.post("/api/chat", async (req, res) => {
                     "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
                 },
                 body: JSON.stringify({
-                    model: "openchat/openchat-7b",
-                    messages: messages
+                    model: "inclusional/ling-3.2-flash:free",
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 1000,
+                    stream: true
                 })
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.text();    
+
+            console.error("OpenRouter Error:", errorData);
+            return res.status(response.status).json({ 
+                error: errorData 
+            });
+        }
+
+        //Header for streaming response
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+
+        // Stream the response from OpenRouter to the client
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+            )
             }
         );
 
