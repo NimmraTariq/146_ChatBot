@@ -50,4 +50,4 @@ The endpoint streams the assistant response as Server-Sent Events.
 
 ## Screenshot
 
-The chatbot screenshot will be added in a follow-up commit.
+![Chatbot web page](screenshots/chatbot-homepage.png)
