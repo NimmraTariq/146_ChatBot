@@ -47,6 +47,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. Keep the AP
 ```
 
 The endpoint streams the assistant response as Server-Sent Events.
+The server currently uses the `inclusional/ling-3.2-flash:free` model through OpenRouter.
 
 ## Screenshot
 
